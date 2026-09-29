@@ -39,7 +39,7 @@ So this server:
 
 The browser must run **headed** (Shopee detects headless); on a server use a virtual display (`xvfb`).
 
-### From source
+### Quick start
 
 ```bash
 git clone https://github.com/dennislwy/shopee-mcp.git

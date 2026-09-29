@@ -38,6 +38,24 @@ Set `SHOPEE_LOCALE` or `SHOPEE_TIMEZONE` to override either independently.
 
 ---
 
+## Tools and request timeouts
+
+The tool reference lives in the [root README](../README.md#tools). What matters for configuration is that **every call drives a real browser**, so responses take tens of seconds — far longer than a typical MCP tool. Most clients default to a **60-second** request timeout, and these calls sit close to it.
+
+| Tool                                    | Typical | Notes                                                      |
+| --------------------------------------- | ------- | ---------------------------------------------------------- |
+| `check_login_status`                    | ~1s     | Cookie check; no navigation. Cheapest way to verify setup. |
+| `search_products`                       | ~30s    | Shopee fires its search request ~28s into the page load.   |
+| `get_product_detail`                    | ~30s    | One page load.                                             |
+| `get_product_variants`                  | ~30s    | One page load.                                             |
+| `get_product_variants` + `includeStock` | ~50s    | Adds a round trip per variant (see below).                 |
+
+`get_product_variants` reports exact per-variant stock only when `includeStock` is set, because Shopee reveals those counts one variant at a time — each costs a separate round trip. The lookup stops on a time budget so it stays inside a 60-second timeout, reporting availability for any variants it did not reach and stating the coverage in its output. Raising your client's timeout above ~70s lets it cover more variants per call; it is off by default so the common path stays fast.
+
+A signed-out session returns the "run `npm run login`" prompt in about a second, so a slow call means work is happening, not that authentication is being retried.
+
+---
+
 ## MCP configuration (all clients)
 
 This server uses **stdio** and launches a **headed** browser, so it needs a display. On a headless machine, wrap the command in `xvfb-run`.
