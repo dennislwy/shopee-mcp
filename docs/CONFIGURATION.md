@@ -104,6 +104,34 @@ Use an **absolute** path to `build/index.js`.
 
 Use the same **`mcpServers`** JSON as above.
 
+## Hermes Agent
+
+[Hermes Agent](https://github.com/NousResearch/hermes-agent) keeps MCP servers in **`~/.hermes/config.yaml`** under **`mcp_servers`** — note the snake_case key, unlike Claude's `mcpServers` — and manages them with `hermes mcp`.
+
+```bash
+hermes mcp add shopee --env SHOPEE_DOMAIN=shopee.com.my --command node --args /absolute/path/to/shopee-mcp/build/index.js
+```
+
+`--args` must come last: it consumes everything after it. On a headless machine use `--command xvfb-run --args -a node /absolute/path/to/shopee-mcp/build/index.js`.
+
+The equivalent YAML, if you'd rather edit the file directly:
+
+```yaml
+mcp_servers:
+  shopee:
+    command: node
+    args:
+      - /absolute/path/to/shopee-mcp/build/index.js
+    env:
+      SHOPEE_DOMAIN: shopee.com.my
+    enabled: true
+    timeout: 180000
+```
+
+**Set `timeout`.** Hermes takes a per-server timeout in **milliseconds**, and the default is well under what this server needs — every call drives a real browser (see [Tools and request timeouts](#tools-and-request-timeouts)). `180000` (3 minutes) leaves room for a cold browser launch and for `get_product_variants` with `includeStock`. Without it, calls that are working normally will be cut off.
+
+Useful checks: `hermes mcp list` shows configured servers, and `hermes mcp test shopee` verifies the connection and tool discovery without starting a chat.
+
 ## Other editors
 
 Cursor, Zed, Windsurf, and any other **stdio MCP host** use the same pattern: a server whose command is `node` (or `xvfb-run … node`) plus the path to `build/index.js`.
