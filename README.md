@@ -10,12 +10,12 @@ The project is **unofficial** and is not affiliated with Shopee or Sea Limited.
 
 ## Tools
 
-| Tool                   | What it returns                                                                                                                              |
-| ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
-| `search_products`      | Keyword search with sorting & pagination — names, prices, sold counts, ratings, seller location, product IDs, URLs.                          |
-| `get_product_detail`   | One product — price & discount, brand, condition, category, rating, **review count**, **sold count**, stock, location, description.          |
-| `get_product_variants` | Every variant of a listing — exact model IDs, variant names, per-variant prices, and availability. Opt into `includeStock` for exact counts. |
-| `check_login_status`   | Whether the saved browser session is currently logged into Shopee — check this before the tools above instead of waiting on a slow failure.  |
+| Tool                   | What it returns                                                                                                                                                       |
+| ---------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `search_products`      | Keyword search with sorting & pagination — names, prices, sold counts, ratings, seller location, product IDs, URLs.                                                   |
+| `get_product_detail`   | One product — price & discount, brand, condition, category, rating, **review count**, **sold count**, stock, location, description.                                   |
+| `get_product_variants` | Every variant of a listing — exact model IDs, variant names, per-variant prices, and availability. Opt into `includeStock` for after-voucher prices and exact counts. |
+| `check_login_status`   | Whether the saved browser session is currently logged into Shopee — check this before the tools above instead of waiting on a slow failure.                           |
 
 ### Tool annotations
 

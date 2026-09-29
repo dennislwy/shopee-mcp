@@ -397,6 +397,25 @@ test('buildVariantRows: zero stock is reported, not treated as missing', () => {
   assert.equal(a.stock, 0, '0 must survive — a sold-out count is real data');
 });
 
+test('buildVariantRows: folds in per-variant post-voucher prices', () => {
+  // Verified live: models[] carries the pre-voucher list price, while selecting
+  // a variant returns the post-voucher one (279.00 -> 249.00, a -RM30 voucher).
+  const post = new Map([['200w 25 000mAh', 24900000]]);
+  const models = [
+    { model_id: 1, name: '200w 25 000mAh', price: 27900000 },
+    { model_id: 2, name: '130w 20 000mAh', price: 23900000 },
+  ] as PdpModel[];
+  const [a, b] = buildVariantRows(models, undefined, post);
+  assert.equal(a.price, 27900000, 'list price is kept as the pre-voucher figure');
+  assert.equal(a.postVoucherPrice, 24900000);
+  assert.equal(b.postVoucherPrice, undefined, 'variants without a lookup stay unpriced');
+});
+
+test('buildVariantRows: no post-voucher prices when none were gathered', () => {
+  const [a] = buildVariantRows(fakeModels());
+  assert.equal(a.postVoucherPrice, undefined);
+});
+
 test('buildVariantRows: carries the pre-order flag', () => {
   const [a, b] = buildVariantRows(fakeModels());
   assert.equal(a.isPreOrder, false);

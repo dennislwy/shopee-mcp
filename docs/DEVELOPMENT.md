@@ -72,7 +72,15 @@ The voucher is in `recommended_shop_voucher_info`. It must be claimed, usually c
 
 **App-exclusive pricing is not visible.** This server reads Shopee's **PC web** app, and the mobile app can show a lower price for the same item — one listing showed RM296.99 on web against RM288.08 in the app. That figure appears nowhere in the PC payload: not in `get_pc`, not in any of the ~20 other endpoints the product page calls, and not in the rendered page. It is structurally out of reach here, not a parsing gap. Closing it would mean targeting the mobile API, a different anti-bot surface.
 
-**Exact per-variant stock is also absent** from `get_pc` (`stock` and `normal_stock` are null at `detail_level: 0`, which the page controls). It comes only from `cart_panel/select_variation_pc`, fired when a variant is selected — one round trip per variant, which is why `get_product_variants` makes `includeStock` opt-in.
+**Exact per-variant stock and per-variant post-voucher prices are both absent** from `get_pc`. `stock` and `normal_stock` are null at `detail_level: 0` (the page controls that), and `models[].price` is the **list** price, excluding any shop voucher. Both come from `cart_panel/select_variation_pc`, fired when a variant is selected — where `product_price.price` is the post-voucher figure and matches that response's own `price_breakdown.price`:
+
+| variant        | `models[].price` | `select_variation_pc` |
+| -------------- | ---------------- | --------------------- |
+| 200w 25 000mAh | 279.00           | **249.00**            |
+| 130w 20 000mAh | 239.00           | **209.00**            |
+| 100w 12 000mAh | 182.09           | **152.09**            |
+
+That is one round trip per variant, which is why `get_product_variants` keeps `includeStock` opt-in — it gathers both from the same response. On the default path the tool labels its prices as list prices rather than implying they are what you would pay.
 
 ## Build output
 

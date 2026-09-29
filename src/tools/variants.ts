@@ -15,8 +15,13 @@ const MAX_STOCK_LOOKUPS = 12;
 export interface VariantRow {
   modelId: number;
   name: string;
-  /** Real amount × 100000. */
+  /** Pre-voucher list price for this variant. Real amount × 100000. */
   price: number;
+  /**
+   * What you would actually pay, once the shop voucher is applied. Only
+   * available when the per-variant lookup ran, since get_pc never carries it.
+   */
+  postVoucherPrice?: number;
   priceBeforeDiscount?: number;
   /** Exact count — only present when the opt-in stock lookup ran. */
   stock?: number;
@@ -33,6 +38,7 @@ export interface VariantRow {
 export function buildVariantRows(
   models: PdpModel[] | null | undefined,
   stockByName?: Map<string, number>,
+  postVoucherByName?: Map<string, number>,
 ): VariantRow[] {
   return (models ?? []).map((m) => {
     // `?? undefined` rather than `||`: a genuine 0 is a sold-out count, not a miss.
@@ -41,6 +47,7 @@ export function buildVariantRows(
       modelId: m.model_id,
       name: m.name,
       price: m.price,
+      postVoucherPrice: postVoucherByName?.get(m.name),
       priceBeforeDiscount: m.price_before_discount ?? undefined,
       stock: exact,
       inStock: m.has_stock ?? undefined,
@@ -61,7 +68,8 @@ export function registerVariantTools(server: McpServer): void {
     'get_product_variants',
     'List every variant (model) of a Shopee product: exact model IDs, variant names, and per-variant prices. ' +
       'Use the model ID to refer to one specific variant of a multi-option listing. ' +
-      'Set includeStock=true to also fetch exact stock counts (slower — Shopee only reveals them one variant at a time).',
+      'Prices default to per-variant LIST prices (before shop vouchers). Set includeStock=true to fetch ' +
+      'after-voucher prices and exact stock counts — slower, as Shopee reveals both one variant at a time.',
     {
       shopId: z.string().optional().describe('Numeric shop ID (from search_products)'),
       itemId: z.string().optional().describe('Numeric item/product ID (from search_products)'),
@@ -70,8 +78,9 @@ export function registerVariantTools(server: McpServer): void {
         .boolean()
         .default(false)
         .describe(
-          'Fetch exact per-variant stock counts. Off by default because it costs a round trip ' +
-            'per variant; when off, each variant is reported as in/out of stock.',
+          'Fetch exact per-variant stock counts AND after-voucher prices (both come from the same ' +
+            'lookup). Off by default because it costs a round trip per variant; when off, prices are ' +
+            'list prices and stock is reported as in/out of stock.',
         ),
     },
     async ({ shopId, itemId, url, includeStock }) => {
@@ -104,6 +113,7 @@ export function registerVariantTools(server: McpServer): void {
 
         let data: PdpResponse;
         let stockByName: Map<string, number> | undefined;
+        let postVoucherByName: Map<string, number> | undefined;
 
         if (includeStock) {
           // One navigation: read the listing, then click each option for its count.
@@ -118,9 +128,14 @@ export function registerVariantTools(server: McpServer): void {
           });
           data = primary;
           stockByName = new Map();
+          postVoucherByName = new Map();
           for (const [name, sel] of selections) {
             const n = sel.data?.stock;
             if (typeof n === 'number') stockByName.set(name, n);
+            // Same response, no extra round trip: get_pc's models[] price is
+            // pre-voucher, this one is what you would actually pay.
+            const pv = sel.data?.product_price?.price?.single_value;
+            if (typeof pv === 'number') postVoucherByName.set(name, pv);
           }
         } else {
           data = await shopeeCapture<PdpResponse>(pageUrl, 'pdp/get_pc');
@@ -138,7 +153,7 @@ export function registerVariantTools(server: McpServer): void {
           };
         }
 
-        const rows = buildVariantRows(item.models, stockByName);
+        const rows = buildVariantRows(item.models, stockByName, postVoucherByName);
         if (rows.length === 0) {
           return {
             content: [
@@ -166,7 +181,15 @@ export function registerVariantTools(server: McpServer): void {
               ? ` ~~${formatPrice(r.priceBeforeDiscount, currency)}~~`
               : '';
           lines.push(`${i + 1}. **${r.name}**`);
-          lines.push(`   💰 ${formatPrice(r.price, currency)}${before}`);
+          if (r.postVoucherPrice !== undefined && r.postVoucherPrice !== r.price) {
+            // Lead with what you would pay; keep the list price for context.
+            lines.push(
+              `   💰 ${formatPrice(r.postVoucherPrice, currency)} after voucher` +
+                ` · ${formatPrice(r.price, currency)} list${before}`,
+            );
+          } else {
+            lines.push(`   💰 ${formatPrice(r.price, currency)}${before}`);
+          }
           lines.push(
             `   ${stockLabel(r)}${r.isPreOrder ? ' | ⏳ Pre-order' : ''} | 🆔 model_id: \`${r.modelId}\``,
           );
@@ -174,7 +197,14 @@ export function registerVariantTools(server: McpServer): void {
         });
 
         if (!includeStock) {
-          lines.push('', '💡 Set `includeStock=true` for exact per-variant stock counts.');
+          // These are models[] list prices, which exclude any shop voucher. Say so
+          // rather than let them be read as the checkout price — get_product_detail
+          // and search_products both report post-voucher figures.
+          lines.push(
+            '',
+            '⚠️ Prices are per-variant **list** prices, before any shop voucher.',
+            '💡 Set `includeStock=true` for after-voucher prices and exact stock counts.',
+          );
         } else if (tiers.length > 1) {
           // Each variant is a combination across axes, so clicking one option
           // never selects a single model and no count comes back for it.

@@ -192,11 +192,19 @@ export interface PdpTierVariation {
   options: string[];
 }
 
-/** Response to selecting a variant — the only place exact stock appears. */
+/**
+ * Response to selecting a variant — the only place exact stock and a
+ * per-variant POST-voucher price appear. `models[].price` in get_pc is the
+ * pre-voucher list price; `product_price.price` here is what you would pay,
+ * and matches this response's own `price_breakdown.price`.
+ */
 export interface SelectVariationResponse {
   error?: number;
   error_msg?: string;
-  data?: { stock?: number | null };
+  data?: {
+    stock?: number | null;
+    product_price?: { price?: { single_value?: number | null } | null } | null;
+  };
 }
 
 export interface PdpItem {
