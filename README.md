@@ -95,6 +95,8 @@ All optional — see `.env.example`. Copy to `.env` to override.
 | Variable             | Default                        | Purpose                              |
 | -------------------- | ------------------------------ | ------------------------------------ |
 | `SHOPEE_DOMAIN`      | `shopee.co.id`                 | Regional Shopee domain.              |
+| `SHOPEE_LOCALE`      | _derived from domain_          | Browser locale (e.g. `en-MY`).       |
+| `SHOPEE_TIMEZONE`    | _derived from domain_          | Browser timezone.                    |
 | `SHOPEE_PROFILE_DIR` | `~/.shopee-mcp/chrome-profile` | Where the saved login lives.         |
 | `SHOPEE_HEADLESS`    | `false`                        | Keep `false` — headless is detected. |
 | `CACHE_TTL_MS`       | `30000`                        | In-memory cache lifetime.            |

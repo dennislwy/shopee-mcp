@@ -1,13 +1,47 @@
+import { launchPersistentContext } from 'cloakbrowser';
 import 'dotenv/config';
 import os from 'node:os';
 import path from 'node:path';
-import { launchPersistentContext } from 'cloakbrowser';
 import type { BrowserContext, Page, Response } from 'playwright';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 export const DOMAIN = process.env.SHOPEE_DOMAIN || 'shopee.co.id';
 export const BASE_URL = `https://${DOMAIN}`;
+
+// Shopee tailors its web app to the visitor's region, so the browser's locale and
+// timezone must match the domain we're browsing — a Malaysian store opened with an
+// id-ID/Asia/Jakarta browser is an inconsistency the anti-bot gate can notice.
+// Keyed by domain suffix; `SHOPEE_LOCALE` / `SHOPEE_TIMEZONE` override either one.
+// `currency` is here because Shopee's newer search cards omit any per-item
+// currency field (the old `item_basic.currency`), so the region is the only
+// thing left to infer it from.
+export interface Region {
+  locale: string;
+  timezone: string;
+  currency: string;
+}
+
+const REGION_DEFAULTS: Record<string, Region> = {
+  '.id': { locale: 'id-ID', timezone: 'Asia/Jakarta', currency: 'IDR' },
+  '.my': { locale: 'en-MY', timezone: 'Asia/Kuala_Lumpur', currency: 'MYR' },
+  '.sg': { locale: 'en-SG', timezone: 'Asia/Singapore', currency: 'SGD' },
+  '.tw': { locale: 'zh-TW', timezone: 'Asia/Taipei', currency: 'TWD' },
+};
+
+// Falls back to the Indonesian defaults, matching the default SHOPEE_DOMAIN.
+const FALLBACK_REGION = REGION_DEFAULTS['.id'];
+
+/** Region defaults for a Shopee domain, chosen by its TLD suffix. */
+export function regionFor(domain: string): Region {
+  const suffix = Object.keys(REGION_DEFAULTS).find((s) => domain.endsWith(s));
+  return suffix ? REGION_DEFAULTS[suffix] : FALLBACK_REGION;
+}
+
+const region = regionFor(DOMAIN);
+export const LOCALE = process.env.SHOPEE_LOCALE || region.locale;
+export const TIMEZONE = process.env.SHOPEE_TIMEZONE || region.timezone;
+export const CURRENCY = region.currency;
 
 export const PROFILE_DIR =
   process.env.SHOPEE_PROFILE_DIR || path.join(os.homedir(), '.shopee-mcp', 'chrome-profile');
@@ -36,13 +70,16 @@ function debug(msg: string): void {
 let contextPromise: Promise<BrowserContext> | null = null;
 
 async function createContext(headless: boolean): Promise<BrowserContext> {
-  debug(`Launching CloakBrowser (headless=${headless}) with profile: ${PROFILE_DIR}`);
+  debug(
+    `Launching CloakBrowser (headless=${headless}, locale=${LOCALE}, tz=${TIMEZONE}) ` +
+      `with profile: ${PROFILE_DIR}`,
+  );
   const ctx = (await launchPersistentContext({
     userDataDir: PROFILE_DIR,
     headless,
     userAgent: USER_AGENT,
-    locale: 'id-ID',
-    timezone: 'Asia/Jakarta',
+    locale: LOCALE,
+    timezone: TIMEZONE,
     viewport: { width: 1366, height: 768 },
     humanize: true,
     args: ['--no-sandbox', '--disable-dev-shm-usage'],
@@ -92,7 +129,10 @@ export interface CaptureOptions {
  * callers inspect its `error` field.
  */
 export async function captureJson<T>(pageUrl: string, opts: CaptureOptions): Promise<T> {
-  const timeoutMs = opts.timeoutMs ?? 30000;
+  // 60s, not 30s: Shopee's search page only fires its `search_items` request at
+  // ~28-30s, so a 30s budget lost the race often enough to trigger the retry in
+  // shopeeCapture — turning a healthy-but-slow page into a 60s+ round trip.
+  const timeoutMs = opts.timeoutMs ?? 60000;
   return withLock(async () => {
     const page = await getPage();
 

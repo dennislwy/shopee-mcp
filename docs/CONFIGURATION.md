@@ -13,10 +13,28 @@ All optional. Set them in your MCP client's **`env`** block, or copy `.env.examp
 | Variable             | Default                        | Description                          |
 | -------------------- | ------------------------------ | ------------------------------------ |
 | `SHOPEE_DOMAIN`      | `shopee.co.id`                 | Regional Shopee domain.              |
+| `SHOPEE_LOCALE`      | _derived from domain_          | Browser locale override.             |
+| `SHOPEE_TIMEZONE`    | _derived from domain_          | Browser timezone override.           |
 | `SHOPEE_PROFILE_DIR` | `~/.shopee-mcp/chrome-profile` | Where the saved login lives.         |
 | `SHOPEE_HEADLESS`    | `false`                        | Keep `false` — headless is detected. |
 | `CACHE_TTL_MS`       | `30000`                        | In-memory cache lifetime.            |
 | `DEBUG`              | `false`                        | Log startup/debug info to stderr.    |
+
+### Locale and timezone
+
+Shopee tailors its web app to the visitor's region, so the browser's locale and timezone should match the domain being browsed. Both are derived from `SHOPEE_DOMAIN`'s TLD suffix:
+
+| Domain suffix | Locale  | Timezone            | Currency |
+| ------------- | ------- | ------------------- | -------- |
+| `.id`         | `id-ID` | `Asia/Jakarta`      | `IDR`    |
+| `.my`         | `en-MY` | `Asia/Kuala_Lumpur` | `MYR`    |
+| `.sg`         | `en-SG` | `Asia/Singapore`    | `SGD`    |
+| `.tw`         | `zh-TW` | `Asia/Taipei`       | `TWD`    |
+| anything else | `id-ID` | `Asia/Jakarta`      | `IDR`    |
+
+The currency is used to render prices when Shopee's response omits a per-item currency field, which the newer search card format does.
+
+Set `SHOPEE_LOCALE` or `SHOPEE_TIMEZONE` to override either independently.
 
 ---
 
