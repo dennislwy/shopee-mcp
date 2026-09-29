@@ -48,14 +48,18 @@ export interface CardRecommendedVoucher {
 
 export interface CardDisplayPrice {
   /**
-   * NOT the price to display: this has the recommended voucher subtracted a
-   * second time. Use `applied_product_promo_price` when it is present — that is
-   * the post-voucher price Shopee actually shows. Verified against a live
-   * listing: original 478.06 − product discount 249.06 − voucher 30.00 = 199.00
-   * = `applied_product_promo_price`, while `price` read 169.00.
+   * The price to display: already post-voucher, matching the PDP's
+   * `price_breakdown.price`. Real amount × 100000.
    */
   price: number;
-  /** The real post-voucher price. Real amount × 100000. */
+  /**
+   * PRE-voucher price — do not display it. It equals `price` plus the
+   * recommended voucher, which makes it look like the "real" price when it is
+   * the opposite. Confirmed by sampling cards against their own PDP breakdown
+   * in the same session: card `price` 251.10 / 278.10 / 289.13 each matched the
+   * PDP's authoritative figure, while `applied_product_promo_price` (279.00 /
+   * 309.00 / 319.13) never did.
+   */
   applied_product_promo_price?: number | null;
   strikethrough_price?: number | null;
   original_price?: number | null;

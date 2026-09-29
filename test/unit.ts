@@ -186,22 +186,23 @@ test('flattenSearchItems: leaves currency undefined on newer cards', () => {
 });
 
 /**
- * A voucher-bearing card, with the real figures from the UGREEN 130W listing:
- * original 478.06 − product discount 249.06 − voucher 30.00 = 199.00, which is
- * what shopee.com.my shows as "After Voucher".
+ * A voucher-bearing card, using the verified figures from the UGREEN PB726
+ * listing: card `price` 251.10 matched that item's own PDP breakdown
+ * (299.00 − 20.00 product discount − 27.90 voucher), while
+ * `applied_product_promo_price` 279.00 is the pre-voucher figure.
  */
 function fakeVoucherCard(): SearchItem {
   return fakeCard({
     item_data: {
       item_card_display_price: {
-        price: 16900000, // RM169.00 — voucher subtracted twice; must NOT be shown
-        applied_product_promo_price: 19900000, // RM199.00 — the real price
-        strikethrough_price: 47806000,
-        original_price: 47806000,
+        price: 25110000, // RM251.10 — post-voucher, the one to show
+        applied_product_promo_price: 27900000, // RM279.00 — PRE-voucher, a trap
+        strikethrough_price: 29900000,
+        original_price: 29900000,
         recommended_shop_voucher_info: {
           voucher_code: '9GCZ0064',
-          voucher_discount: 3000000, // RM30.00
-          min_spend: 4900000, // RM49.00
+          voucher_discount: 2790000, // RM27.90
+          min_spend: 5000000, // RM50.00
           groups: ['Shopee Plus'],
         },
       },
@@ -209,23 +210,18 @@ function fakeVoucherCard(): SearchItem {
   });
 }
 
-test('flattenSearchItems: uses applied_product_promo_price, not the double-discounted price', () => {
-  // Regression: `price` has the recommended voucher taken off a second time, so
-  // showing it under-reports every voucher-bearing card by the voucher amount.
+test('flattenSearchItems: shows the post-voucher price, not applied_product_promo_price', () => {
+  // applied_product_promo_price is price + voucher, so using it over-reports by
+  // the voucher amount on every voucher-bearing card.
   const [r] = flattenSearchItems([fakeVoucherCard()]);
-  assert.equal(r.price, 19900000, 'should be RM199.00, the post-voucher price');
-  assert.notEqual(r.price, 16900000, 'RM169.00 double-counts the voucher');
-});
-
-test('flattenSearchItems: falls back to price when there is no promo price', () => {
-  const [r] = flattenSearchItems([fakeCard()]);
-  assert.equal(r.price, 22555000);
+  assert.equal(r.price, 25110000, 'should be RM251.10, matching the PDP breakdown');
+  assert.notEqual(r.price, 27900000, 'RM279.00 is the pre-voucher figure');
 });
 
 test('flattenSearchItems: captures the voucher terms behind the price', () => {
   const [r] = flattenSearchItems([fakeVoucherCard()]);
-  assert.equal(r.voucher?.discount, 3000000);
-  assert.equal(r.voucher?.minSpend, 4900000);
+  assert.equal(r.voucher?.discount, 2790000);
+  assert.equal(r.voucher?.minSpend, 5000000);
   assert.equal(r.voucher?.code, '9GCZ0064');
   assert.equal(r.voucher?.membership, 'Shopee Plus', 'membership gating must survive');
 });
@@ -240,7 +236,7 @@ test('flattenSearchItems: an unrestricted voucher reports no membership', () => 
     item_data: {
       item_card_display_price: {
         price: 2300000,
-        applied_product_promo_price: 2500000,
+        applied_product_promo_price: 2500000, // pre-voucher; must be ignored
         recommended_shop_voucher_info: {
           voucher_code: 'OTQ5COFT',
           voucher_discount: 200000,
@@ -251,7 +247,7 @@ test('flattenSearchItems: an unrestricted voucher reports no membership', () => 
     },
   });
   const [r] = flattenSearchItems([card]);
-  assert.equal(r.price, 2500000);
+  assert.equal(r.price, 2300000, 'post-voucher price, not the promo price');
   assert.equal(r.voucher?.membership, undefined);
   assert.equal(r.voucher?.code, 'OTQ5COFT');
 });

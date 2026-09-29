@@ -48,9 +48,9 @@ function fromCard(it: SearchItem): SearchResult | null {
     itemid: real?.item_id ?? it.itemid ?? d?.itemid ?? 0,
     shopid: real?.shop_id ?? it.shopid ?? d?.shopid ?? 0,
     name,
-    // `price` has the recommended voucher deducted a second time; the promo
-    // price is what Shopee actually shows. See CardDisplayPrice.
-    price: p.applied_product_promo_price ?? p.price,
+    // `price` is already post-voucher. Do not reach for
+    // applied_product_promo_price — that is the pre-voucher figure.
+    price: p.price,
     priceBeforeDiscount: before ?? undefined,
     // Newer cards carry no currency field at all — left undefined so the caller
     // falls back to the region's currency.

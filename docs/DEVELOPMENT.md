@@ -58,17 +58,17 @@ price                   RM296.99
 
 `299.99 − 3.00 = 296.99` exactly. Subtracting `discount_amount` from `price` would double-count the voucher and under-report every discounted listing. Report `price` as-is; read `discount_breakdown` only for attribution (which voucher produced the reduction).
 
-**On search cards, use `applied_product_promo_price`, not `price`.** Search results carry a recommended shop voucher, and `price` has that voucher deducted a **second** time. `applied_product_promo_price` is the post-voucher price Shopee actually shows. Verified against a live listing:
+**On search cards, `price` is the one to show — not `applied_product_promo_price`.** Cards carry a recommended shop voucher; `price` already has it deducted, and `applied_product_promo_price` is the **pre**-voucher figure. The name reads like the opposite, so check before trusting it. Three cards sampled against their own PDP `price_breakdown` in the same session:
 
-```
-original_price                478.06     (= the page's "Original Price")
-  product discount           −249.06
-  shop voucher               − 30.00
-applied_product_promo_price   199.00     (= the page's "After Voucher")
-price                         169.00     (= 199.00 − 30.00 again)
-```
+| card `price` | `applied_product_promo_price` | PDP authoritative |
+| ------------ | ----------------------------- | ----------------- |
+| 251.10       | 279.00                        | **251.10**        |
+| 278.10       | 309.00                        | **278.10**        |
+| 289.13       | 319.13                        | **289.13**        |
 
-Displaying `price` under-reports every voucher-bearing card by the voucher amount. The relationship `price = applied_product_promo_price − voucher_discount` holds consistently, which makes it tempting to read `price` as the final figure — it is not. The voucher itself is in `recommended_shop_voucher_info`, and is often restricted to a membership tier (`groups: ["Shopee Plus"]`) and a `min_spend`, so the price is not unconditional.
+To verify this yourself, compare a card against **that same item's** PDP in one session. Comparing across sessions is unreliable: Shopee runs flash sales that move prices within the hour. A **virtual card** is also useless as evidence here — its PDP resolves to a different default variant, so neither field will match, and that mismatch says nothing about the field semantics.
+
+The voucher is in `recommended_shop_voucher_info`. It must be claimed, usually carries a `min_spend`, and is often restricted to a membership tier (`groups: ["Shopee Plus"]`), so the price is real but not unconditional — `search_products` prints those terms under the price.
 
 **App-exclusive pricing is not visible.** This server reads Shopee's **PC web** app, and the mobile app can show a lower price for the same item — one listing showed RM296.99 on web against RM288.08 in the app. That figure appears nowhere in the PC payload: not in `get_pc`, not in any of the ~20 other endpoints the product page calls, and not in the rendered page. It is structurally out of reach here, not a parsing gap. Closing it would mean targeting the mobile API, a different anti-bot surface.
 
