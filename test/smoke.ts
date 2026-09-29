@@ -21,14 +21,38 @@ const tsxBin = resolve(__dirname, '../node_modules/.bin/tsx');
 const serverEntry = resolve(__dirname, '../src/index.ts');
 
 // Markers that mean the pipeline actually broke (vs. data or a login prompt).
-const HARD_FAILURES = ['❌ Error:', 'Unknown error occurred', 'Invalid JSON', 'Browser error'];
+const HARD_FAILURES = [
+  '❌ Error:',
+  'Shopee API Error',
+  'Unknown error occurred',
+  'Invalid JSON',
+  'Browser error',
+];
 
 interface Check {
   tool: string;
-  args: Record<string, unknown>;
+  /** A thunk so a check can build on what an earlier one returned. */
+  args: Record<string, unknown> | (() => Record<string, unknown>);
   // A pass requires at least one of these substrings.
   expect: string[];
+  /** Offered the response text, so later checks can use it. */
+  capture?: (text: string) => void;
 }
+
+/**
+ * Product to look up, discovered from the search results rather than hardcoded.
+ *
+ * A fixed item id is only valid on the region that hosts it: the previous
+ * Indonesian fixture returned Shopee error 266900002 ("item not found") against
+ * shopee.com.my, and any hardcoded listing can be delisted later. Deriving it
+ * keeps this check honest for whatever SHOPEE_DOMAIN is configured, and
+ * exercises the real search -> detail path a user follows.
+ */
+let discovered: { shopId: string; itemId: string } | null = null;
+
+// Used only when search yields nothing to derive from — e.g. signed out, where
+// every tool short-circuits to the login prompt regardless of the ids passed.
+const PLACEHOLDER = { shopId: '1', itemId: '1' };
 
 const CHECKS: Check[] = [
   {
@@ -36,10 +60,14 @@ const CHECKS: Check[] = [
     args: { query: 'laptop', limit: 3 },
     // Either real results, an empty-but-valid result, or the login prompt.
     expect: ['Search Results', 'No products found', 'Not signed in to Shopee'],
+    capture: (text) => {
+      const m = text.match(/\/product\/(\d+)\/(\d+)/);
+      if (m) discovered = { shopId: m[1], itemId: m[2] };
+    },
   },
   {
     tool: 'get_product_detail',
-    args: { shopId: '78730497', itemId: '47060432055' },
+    args: () => discovered ?? PLACEHOLDER,
     expect: ['Price:', 'Could not read product', 'Not signed in to Shopee'],
   },
   {
@@ -69,10 +97,12 @@ async function main() {
     let status: 'PASS' | 'FAIL' = 'FAIL';
     let note: string;
     try {
-      const res = (await client.callTool({ name: check.tool, arguments: check.args })) as {
+      const args = typeof check.args === 'function' ? check.args() : check.args;
+      const res = (await client.callTool({ name: check.tool, arguments: args })) as {
         content: Array<{ type: string; text?: string }>;
       };
       text = res.content.map((c) => c.text ?? '').join('\n');
+      check.capture?.(text);
 
       const hardFail = HARD_FAILURES.find((m) => text.includes(m));
       if (hardFail) {
