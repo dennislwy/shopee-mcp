@@ -8,10 +8,11 @@ import assert from 'node:assert/strict';
 import { flattenSearchItems } from '../src/tools/search.js';
 import { formatPrice } from '../src/utils/price.js';
 import { parseProductUrl, priceText } from '../src/tools/product.js';
+import { buildVariantRows } from '../src/tools/variants.js';
 import { shopeeCapture, ShopeeAuthRequiredError } from '../src/api/client.js';
 import { cache } from '../src/utils/cache.js';
 import { regionFor } from '../src/browser/session.js';
-import type { SearchItem, ItemBasic } from '../src/api/types.js';
+import type { SearchItem, ItemBasic, PdpModel } from '../src/api/types.js';
 
 let failures = 0;
 const pending: Array<{ name: string; fn: () => void | Promise<void> }> = [];
@@ -261,6 +262,84 @@ test('formatPrice: renders TWD with NT$ and no decimals', () => {
 
 test('formatPrice: falls back to "CURRENCY amount" for an unmapped currency', () => {
   assert.equal(formatPrice(500000000, 'USD'), 'USD 5.000');
+});
+
+// ─── buildVariantRows ───────────────────────────────────────────────────────
+
+/** Models as returned for the UGREEN Nexode listing (shop 331309804). */
+function fakeModels(): PdpModel[] {
+  return [
+    {
+      model_id: 139145426356,
+      name: '200w 25 000mAh',
+      price: 26900000,
+      price_before_discount: 74750000,
+      stock: null,
+      has_stock: true,
+      extinfo: { tier_index: [0], is_pre_order: false },
+    },
+    {
+      model_id: 139145426358,
+      name: '100w 12 000mAh',
+      price: 18209000,
+      price_before_discount: 42250000,
+      stock: null,
+      has_stock: false,
+      extinfo: { tier_index: [2], is_pre_order: true },
+    },
+  ];
+}
+
+test('buildVariantRows: maps model id, name and prices', () => {
+  const [a, b] = buildVariantRows(fakeModels());
+  assert.equal(a.modelId, 139145426356);
+  assert.equal(a.name, '200w 25 000mAh');
+  assert.equal(a.price, 26900000);
+  assert.equal(a.priceBeforeDiscount, 74750000);
+  assert.equal(b.modelId, 139145426358);
+});
+
+test('buildVariantRows: falls back to has_stock when no counts were gathered', () => {
+  // get_pc leaves numeric stock null, so availability is all we can report.
+  const [a, b] = buildVariantRows(fakeModels());
+  assert.equal(a.stock, undefined);
+  assert.equal(a.inStock, true);
+  assert.equal(b.inStock, false);
+});
+
+test('buildVariantRows: folds in exact counts keyed by variant name', () => {
+  const stock = new Map([
+    ['200w 25 000mAh', 229],
+    ['100w 12 000mAh', 244],
+  ]);
+  const [a, b] = buildVariantRows(fakeModels(), stock);
+  assert.equal(a.stock, 229);
+  assert.equal(b.stock, 244);
+});
+
+test('buildVariantRows: a variant missing from the stock map keeps availability only', () => {
+  // Clicking can fail for one option without invalidating the rest.
+  const [a, b] = buildVariantRows(fakeModels(), new Map([['200w 25 000mAh', 229]]));
+  assert.equal(a.stock, 229);
+  assert.equal(b.stock, undefined);
+  assert.equal(b.inStock, false);
+});
+
+test('buildVariantRows: zero stock is reported, not treated as missing', () => {
+  const [a] = buildVariantRows(fakeModels(), new Map([['200w 25 000mAh', 0]]));
+  assert.equal(a.stock, 0, '0 must survive — a sold-out count is real data');
+});
+
+test('buildVariantRows: carries the pre-order flag', () => {
+  const [a, b] = buildVariantRows(fakeModels());
+  assert.equal(a.isPreOrder, false);
+  assert.equal(b.isPreOrder, true);
+});
+
+test('buildVariantRows: handles a listing with no models', () => {
+  assert.deepEqual(buildVariantRows(null), []);
+  assert.deepEqual(buildVariantRows(undefined), []);
+  assert.deepEqual(buildVariantRows([]), []);
 });
 
 // ─── priceText (product detail) ─────────────────────────────────────────────

@@ -149,6 +149,96 @@ export async function captureJson<T>(pageUrl: string, opts: CaptureOptions): Pro
   });
 }
 
+export interface SelectionOptions<P> {
+  /** Substring identifying the page's main /api/v4 response. */
+  apiMatch: string;
+  /** Substring identifying the response each selection fires. */
+  selectionApiMatch: string;
+  /** Labels to click, derived from the main response. */
+  labelsFrom: (primary: P) => string[];
+  /** Cap on how many selections to click; the rest are left ungathered. */
+  maxSelections?: number;
+  timeoutMs?: number;
+}
+
+/**
+ * Like captureJson, but afterwards clicks a set of on-page options and captures
+ * the response each one fires — for data Shopee reveals only on interaction
+ * (per-variant stock lives in cart_panel/select_variation_pc, never in get_pc).
+ *
+ * One navigation serves both halves. Clicks go through a plain DOM `click()`
+ * rather than Playwright's: CloakBrowser's humanised pointer path first scrolls
+ * the element into view, which throws on Shopee's virtualised variant list.
+ */
+export async function captureWithSelections<P, S>(
+  pageUrl: string,
+  opts: SelectionOptions<P>,
+): Promise<{ primary: P; selections: Map<string, S> }> {
+  const timeoutMs = opts.timeoutMs ?? 60000;
+  return withLock(async () => {
+    const page = await getPage();
+
+    const matched = page.waitForResponse(
+      (r: Response) => r.url().includes('/api/v4/') && r.url().includes(opts.apiMatch),
+      { timeout: timeoutMs },
+    );
+    await page.goto(pageUrl, { waitUntil: 'domcontentloaded', timeout: timeoutMs });
+    const primary = (await (await matched).json()) as P;
+
+    const selections = new Map<string, S>();
+    const labels = opts.labelsFrom(primary).slice(0, opts.maxSelections ?? 12);
+    if (labels.length === 0) return { primary, selections };
+
+    // The payload lands before React paints the options; wait for one to exist.
+    await page
+      .waitForFunction(
+        (ls: string[]) =>
+          ls.some((l) =>
+            Array.from(document.querySelectorAll('button')).some(
+              (b) => (b.textContent || '').trim() === l,
+            ),
+          ),
+        labels,
+        { timeout: 30000 },
+      )
+      .catch(() => debug('Variant options never rendered; skipping selections'));
+
+    for (const label of labels) {
+      const fired = page
+        .waitForResponse((r: Response) => r.url().includes(opts.selectionApiMatch), {
+          timeout: 15000,
+        })
+        .catch(() => null);
+
+      const clicked = await page.evaluate((l: string) => {
+        const b = Array.from(document.querySelectorAll('button')).find(
+          (x) => (x.textContent || '').trim() === l,
+        );
+        if (!b) return false;
+        b.click();
+        return true;
+      }, label);
+
+      if (!clicked) {
+        debug(`No option button for "${label}"`);
+        continue;
+      }
+      const resp = await fired;
+      if (!resp) {
+        debug(`No ${opts.selectionApiMatch} response for "${label}"`);
+        continue;
+      }
+      try {
+        selections.set(label, (await resp.json()) as S);
+      } catch {
+        debug(`Unparsable ${opts.selectionApiMatch} response for "${label}"`);
+      }
+    }
+
+    return { primary, selections };
+  });
+}
+
 /** Warm the session once (loads Shopee so the anti-fraud SDK initialises). */
 export async function warm(): Promise<void> {
   await withLock(async () => {

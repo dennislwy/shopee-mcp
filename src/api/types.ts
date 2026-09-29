@@ -131,10 +131,48 @@ export interface PdpCategory {
   display_name: string;
 }
 
+/** One purchasable variant of a listing. */
+export interface PdpModel {
+  model_id: number;
+  name: string;
+  /** Real amount × 100000, as everywhere else. */
+  price: number;
+  price_before_discount?: number | null;
+  /**
+   * Exact counts are null in the PC PDP payload (detail_level 0) — Shopee only
+   * returns them from cart_panel/select_variation_pc, one variant at a time.
+   */
+  stock?: number | null;
+  normal_stock?: number | null;
+  /** Whether the variant can be bought at all; the only stock signal get_pc gives. */
+  has_stock?: boolean | null;
+  status?: number | null;
+  extinfo?: {
+    tier_index?: number[];
+    is_pre_order?: boolean;
+    estimated_days?: number;
+  } | null;
+}
+
+/** One axis of variation, e.g. "Colour" with options ["Red", "Blue"]. */
+export interface PdpTierVariation {
+  name: string;
+  options: string[];
+}
+
+/** Response to selecting a variant — the only place exact stock appears. */
+export interface SelectVariationResponse {
+  error?: number;
+  error_msg?: string;
+  data?: { stock?: number | null };
+}
+
 export interface PdpItem {
   item_id: number;
   shop_id: number;
   title: string;
+  models?: PdpModel[] | null;
+  tier_variations?: PdpTierVariation[] | null;
   brand?: string;
   /** 1 = new, otherwise used. */
   condition?: number;

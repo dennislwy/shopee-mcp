@@ -7,6 +7,7 @@ import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { registerSearchTools } from './tools/search.js';
 import { registerProductTools } from './tools/product.js';
+import { registerVariantTools } from './tools/variants.js';
 import { registerStatusTools } from './tools/status.js';
 import { closeContext } from './browser/session.js';
 
@@ -27,6 +28,7 @@ async function main() {
   // session (see src/browser/session.ts) — sign in once with `npm run login`.
   registerSearchTools(server);
   registerProductTools(server);
+  registerVariantTools(server);
   registerStatusTools(server);
 
   const transport = new StdioServerTransport();
