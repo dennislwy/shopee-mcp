@@ -10,12 +10,12 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/bintangtimurlangit/shopee-mcp.git"
+    "url": "git+https://github.com/dennislwy/shopee-mcp.git"
   },
   "bugs": {
-    "url": "https://github.com/bintangtimurlangit/shopee-mcp/issues"
+    "url": "https://github.com/dennislwy/shopee-mcp/issues"
   },
-  "homepage": "https://github.com/bintangtimurlangit/shopee-mcp#readme",
+  "homepage": "https://github.com/dennislwy/shopee-mcp#readme",
   "bin": {
     "shopee-mcp": "build/index.js",
     "shopee-mcp-login": "build/login.js"
