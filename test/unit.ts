@@ -183,18 +183,40 @@ test('flattenSearchItems: leaves currency undefined on newer cards', () => {
   assert.equal(r.currency, undefined);
 });
 
-test('flattenSearchItems: ignores real_items tracking metadata on newer cards', () => {
-  // On newer cards real_items holds ad attribution, NOT products — fanning it
-  // out would emit one bogus entry per tracking record.
+test('flattenSearchItems: a newer card with real_items stays one product', () => {
+  // real_items on a newer card describes the SAME product, not extra ones —
+  // fanning it out would emit a duplicate per entry.
   const card = fakeCard({
     real_items: [
       { item_id: 24782704787, shop_id: 64923440, info: 'AB:711473|...' },
-      { item_id: 24782704788, shop_id: 64923440, info: 'AB:711474|...' },
     ] as unknown as SearchItem['real_items'],
   });
-  const out = flattenSearchItems([card]);
-  assert.equal(out.length, 1);
-  assert.equal(out[0].itemid, 43174409162);
+  assert.equal(flattenSearchItems([card]).length, 1);
+});
+
+test('flattenSearchItems: virtual cards resolve identity from real_items', () => {
+  // Some newer cards are "virtual item" placeholders: the top-level ids are a
+  // synthetic selection model that pdp/get_pc rejects with 266900504. The real
+  // purchasable listing is in real_items[0] — use that for links and lookups.
+  const card = fakeCard({
+    itemid: 43174409162,
+    shopid: 1432004273,
+    real_items: [
+      { item_id: 24782704787, shop_id: 64923440, info: 'AB:711473|...' },
+    ] as unknown as SearchItem['real_items'],
+  });
+  const [r] = flattenSearchItems([card]);
+  assert.equal(r.itemid, 24782704787, 'should use the real item id');
+  assert.equal(r.shopid, 64923440, 'should use the real shop id');
+  // Display still comes from the card the user actually sees.
+  assert.equal(r.name, 'Ugreen Nexode Power Bank 20000mAh 130W');
+  assert.equal(r.price, 22555000);
+});
+
+test('flattenSearchItems: a newer card without real_items keeps its own ids', () => {
+  const [r] = flattenSearchItems([fakeCard()]);
+  assert.equal(r.itemid, 43174409162);
+  assert.equal(r.shopid, 1432004273);
 });
 
 test('flattenSearchItems: drops a newer card missing a name or price', () => {

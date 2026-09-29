@@ -37,9 +37,14 @@ function fromCard(it: SearchItem): SearchResult | null {
   const soldCount = d?.item_card_display_sold_count ?? undefined;
   const before = p.original_price ?? p.strikethrough_price ?? undefined;
 
+  // On a "virtual item" card the top-level ids are a synthetic selection-model
+  // placeholder that pdp/get_pc rejects (266900504); real_items holds the actual
+  // listing. Display still comes from the card the user sees.
+  const real = it.real_items?.[0];
+
   return {
-    itemid: it.itemid ?? d?.itemid ?? 0,
-    shopid: it.shopid ?? d?.shopid ?? 0,
+    itemid: real?.item_id ?? it.itemid ?? d?.itemid ?? 0,
+    shopid: real?.shop_id ?? it.shopid ?? d?.shopid ?? 0,
     name,
     price: p.price,
     priceBeforeDiscount: before ?? undefined,
@@ -62,9 +67,9 @@ function fromCard(it: SearchItem): SearchResult | null {
  * individually rather than assuming one shape per domain — Shopee is rolling the
  * newer card format out per-market, and a single response can mix forms.
  *
- * Order matters: newer cards also carry a `real_items` array, but it holds ad
- * tracking metadata rather than products, so the legacy fan-out is only tried
- * once both other shapes have been ruled out.
+ * Order matters: newer cards also carry a `real_items` array, but there it
+ * describes the same product (see fromCard) rather than extra ones, so the
+ * legacy fan-out is only tried once both other shapes have been ruled out.
  */
 export function flattenSearchItems(items: SearchItem[] | null | undefined): SearchResult[] {
   return (items ?? []).flatMap((it) => {

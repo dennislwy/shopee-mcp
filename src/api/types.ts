@@ -79,11 +79,18 @@ export interface SearchItem {
    * Legacy shape: recommendation/ads cards with no top-level `item_basic` nest
    * their real product cards here.
    *
-   * On newer card-shaped results this same key instead holds ad-attribution
-   * metadata (`{item_id, shop_id, model_id, info}`) with no product data at
-   * all — which is why flattenSearchItems only reads it as a last resort.
+   * Newer cards reuse the key differently: `{item_id, shop_id, model_id, info}`
+   * describing the SAME product, not extra ones. On a "virtual item" card the
+   * top-level `itemid`/`shopid` are a synthetic selection-model placeholder that
+   * `pdp/get_pc` rejects with error 266900504 — the real purchasable listing is
+   * here. (`info` is ad tracking; the ids are genuine.)
    */
-  real_items?: Array<{ item_basic?: ItemBasic }>;
+  real_items?: Array<{
+    item_basic?: ItemBasic;
+    item_id?: number;
+    shop_id?: number;
+    model_id?: number;
+  }>;
 }
 
 export interface SearchItemsResponse {
