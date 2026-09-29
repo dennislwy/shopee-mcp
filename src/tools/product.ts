@@ -1,23 +1,18 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { shopeeCapture, shopeeUrl } from '../api/client.js';
-import { BASE_URL } from '../browser/session.js';
+import { BASE_URL, CURRENCY } from '../browser/session.js';
 import { cache } from '../utils/cache.js';
 import { withErrorHandling, truncate } from '../utils/errors.js';
+import { formatPrice } from '../utils/price.js';
 import type { PdpResponse, PdpPriceValue } from '../api/types.js';
 
-// Shopee stores prices as the real amount × 100000.
-function fmt(raw: number, currency = 'IDR'): string {
-  const amount = raw / 100000;
-  if (currency === 'IDR') return `Rp${Math.round(amount).toLocaleString('id-ID')}`;
-  return `${currency} ${amount.toLocaleString('id-ID')}`;
-}
-
-function priceText(p: PdpPriceValue, currency: string): string {
+/** Render a PDP price value, which is either a single price or a range. */
+export function priceText(p: PdpPriceValue, currency: string): string {
   if (p.range_min >= 0 && p.range_max >= 0 && p.range_min !== p.range_max) {
-    return `${fmt(p.range_min, currency)} – ${fmt(p.range_max, currency)}`;
+    return `${formatPrice(p.range_min, currency)} – ${formatPrice(p.range_max, currency)}`;
   }
-  return fmt(p.single_value, currency);
+  return formatPrice(p.single_value, currency);
 }
 
 /** Parse "shopId/itemId" out of a Shopee product URL, if present. */
@@ -89,7 +84,9 @@ export function registerProductTools(server: McpServer): void {
           };
         }
 
-        const currency = item.currency || 'IDR';
+        // Shopee omits the currency on some regions' responses; fall back to the
+        // one implied by SHOPEE_DOMAIN rather than assuming Indonesia.
+        const currency = item.currency || CURRENCY;
         const price = priceText(pp.price, currency);
         const before =
           pp.price_before_discount && pp.price_before_discount.single_value > pp.price.single_value

@@ -5,8 +5,9 @@
  * Run with: npm run test:unit
  */
 import assert from 'node:assert/strict';
-import { flattenSearchItems, formatPrice } from '../src/tools/search.js';
-import { parseProductUrl } from '../src/tools/product.js';
+import { flattenSearchItems } from '../src/tools/search.js';
+import { formatPrice } from '../src/utils/price.js';
+import { parseProductUrl, priceText } from '../src/tools/product.js';
 import { shopeeCapture, ShopeeAuthRequiredError } from '../src/api/client.js';
 import { cache } from '../src/utils/cache.js';
 import { regionFor } from '../src/browser/session.js';
@@ -260,6 +261,38 @@ test('formatPrice: renders TWD with NT$ and no decimals', () => {
 
 test('formatPrice: falls back to "CURRENCY amount" for an unmapped currency', () => {
   assert.equal(formatPrice(500000000, 'USD'), 'USD 5.000');
+});
+
+// ─── priceText (product detail) ─────────────────────────────────────────────
+
+test('priceText: formats a single MYR price with the shared currency table', () => {
+  // Regression: the product tool used to format every non-IDR price with
+  // Indonesian rules, rendering RM163.03 as "MYR 163,03".
+  assert.equal(
+    priceText({ single_value: 16303000, range_min: -1, range_max: -1 }, 'MYR'),
+    'RM163.03',
+  );
+});
+
+test('priceText: formats an IDR price unchanged', () => {
+  assert.equal(
+    priceText({ single_value: 15000000000, range_min: -1, range_max: -1 }, 'IDR'),
+    'Rp150.000',
+  );
+});
+
+test('priceText: renders a range when min and max differ', () => {
+  assert.equal(
+    priceText({ single_value: 0, range_min: 1000000, range_max: 2500000 }, 'MYR'),
+    'RM10.00 – RM25.00',
+  );
+});
+
+test('priceText: treats a -1 range as a single price', () => {
+  assert.equal(
+    priceText({ single_value: 5000000, range_min: -1, range_max: -1 }, 'SGD'),
+    'S$50.00',
+  );
 });
 
 // ─── parseProductUrl ────────────────────────────────────────────────────────

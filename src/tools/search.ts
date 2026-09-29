@@ -4,6 +4,7 @@ import { shopeeCapture, shopeeUrl } from '../api/client.js';
 import { BASE_URL, CURRENCY } from '../browser/session.js';
 import { cache } from '../utils/cache.js';
 import { withErrorHandling } from '../utils/errors.js';
+import { formatPrice } from '../utils/price.js';
 import type { SearchItemsResponse, SearchItem, ItemBasic, SearchResult } from '../api/types.js';
 
 /** Normalise a legacy `item_basic` card. */
@@ -92,24 +93,6 @@ export function flattenSearchItems(items: SearchItem[] | null | undefined): Sear
 
     return [];
   });
-}
-
-// How each currency renders: Shopee reports prices as the real amount × 100000.
-const CURRENCY_FORMATS: Record<string, { symbol: string; locale: string; decimals: number }> = {
-  IDR: { symbol: 'Rp', locale: 'id-ID', decimals: 0 },
-  MYR: { symbol: 'RM', locale: 'en-MY', decimals: 2 },
-  SGD: { symbol: 'S$', locale: 'en-SG', decimals: 2 },
-  TWD: { symbol: 'NT$', locale: 'zh-TW', decimals: 0 },
-};
-
-export function formatPrice(raw: number, currency = 'IDR'): string {
-  const amount = raw / 100000;
-  const fmt = CURRENCY_FORMATS[currency];
-  if (!fmt) return `${currency} ${amount.toLocaleString('id-ID')}`;
-  return `${fmt.symbol}${amount.toLocaleString(fmt.locale, {
-    minimumFractionDigits: fmt.decimals,
-    maximumFractionDigits: fmt.decimals,
-  })}`;
 }
 
 function priceText(r: SearchResult, fallbackCurrency: string): string {
