@@ -1,15 +1,12 @@
 # shopee-mcp
 
-[![npm](https://img.shields.io/npm/v/@bintangtimurlangit/shopee-mcp?style=flat-square)](https://www.npmjs.com/package/@bintangtimurlangit/shopee-mcp)
-[![license](https://img.shields.io/github/license/bintangtimurlangit/shopee-mcp?style=flat-square)](./LICENSE)
-[![CI](https://img.shields.io/github/actions/workflow/status/bintangtimurlangit/shopee-mcp/ci.yml?branch=main&style=flat-square)](https://github.com/bintangtimurlangit/shopee-mcp/actions)
-[![GitHub Repo](https://img.shields.io/badge/GitHub-shopee--mcp-24292f?style=flat-square&logo=github)](https://github.com/bintangtimurlangit/shopee-mcp)
-
 An MCP server for **exploring Shopee** — product search and prices — from any MCP client (Claude Desktop, Claude Code, etc.). Discovery only: no seller features.
 
-> **Login required, read-only.** Shopee blocks anonymous requests, so this **unofficial** server reads public data through your own logged-in browser session (see [Why a browser?](#why-a-browser)). It performs no seller or account actions.
+This repository is a fork of [`bintangtimurlangit/shopee-mcp`](https://github.com/bintangtimurlangit/shopee-mcp). It keeps the upstream browser-backed product discovery tools.
 
-**Full reference:** [Documentation](./docs/README.md) · **Changelog:** [CHANGELOG.md](./CHANGELOG.md) · **Versioning & releases:** [docs/RELEASES.md](./docs/RELEASES.md)
+The project is **unofficial** and is not affiliated with Shopee or Sea Limited.
+
+> This fork is currently intended to run **from source**. The upstream npm package does **not** include this fork's cart tools.
 
 ## Tools
 
@@ -137,9 +134,11 @@ More detail: **[docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)**.
 
 [CONTRIBUTING.md](./CONTRIBUTING.md) · [SECURITY.md](./SECURITY.md) · [Code of Conduct](./CODE_OF_CONDUCT.md)
 
-## License
+## Upstream and license
 
-[MIT](./LICENSE)
+Original project: [`bintangtimurlangit/shopee-mcp`](https://github.com/bintangtimurlangit/shopee-mcp)
+
+This fork retains the upstream MIT license and copyright notice. See [`LICENSE`](./LICENSE).
 
 ---
 

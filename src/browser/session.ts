@@ -158,6 +158,12 @@ export interface SelectionOptions<P> {
   labelsFrom: (primary: P) => string[];
   /** Cap on how many selections to click; the rest are left ungathered. */
   maxSelections?: number;
+  /**
+   * Wall-clock budget for the whole call. Selections stop once it's spent, so a
+   * slow network or a long option list can't push the tool past the ~60s request
+   * timeout most MCP clients default to. Partial results beat a dead request.
+   */
+  deadlineMs?: number;
   timeoutMs?: number;
 }
 
@@ -175,6 +181,7 @@ export async function captureWithSelections<P, S>(
   opts: SelectionOptions<P>,
 ): Promise<{ primary: P; selections: Map<string, S> }> {
   const timeoutMs = opts.timeoutMs ?? 60000;
+  const deadline = Date.now() + (opts.deadlineMs ?? 50000);
   return withLock(async () => {
     const page = await getPage();
 
@@ -204,9 +211,17 @@ export async function captureWithSelections<P, S>(
       .catch(() => debug('Variant options never rendered; skipping selections'));
 
     for (const label of labels) {
+      // Each selection is a full round trip, so check the budget before starting
+      // another rather than discovering mid-flight that we've overrun.
+      const remaining = deadline - Date.now();
+      if (remaining < 6000) {
+        debug(`Selection budget spent; ${selections.size}/${labels.length} gathered`);
+        break;
+      }
+
       const fired = page
         .waitForResponse((r: Response) => r.url().includes(opts.selectionApiMatch), {
-          timeout: 15000,
+          timeout: Math.min(12000, remaining),
         })
         .catch(() => null);
 

@@ -183,11 +183,18 @@ export function registerVariantTools(server: McpServer): void {
             `⚠️ This listing varies across ${tiers.length} options (${tiers.map((t) => t.name).join(' × ')}), ` +
               'so exact counts are unavailable — showing availability instead.',
           );
-        } else if (rows.length > MAX_STOCK_LOOKUPS) {
-          lines.push(
-            '',
-            `⚠️ Exact counts fetched for the first ${MAX_STOCK_LOOKUPS} variants only.`,
-          );
+        } else {
+          const got = rows.filter((r) => r.stock !== undefined).length;
+          if (got < rows.length) {
+            // Stock gathering is capped by a time budget so the call stays inside
+            // the ~60s most MCP clients allow; say so rather than look inconsistent.
+            lines.push(
+              '',
+              `⚠️ Exact counts for ${got} of ${rows.length} variants — the rest show availability ` +
+                `only (each count costs a round trip, and the lookup stops before the request ` +
+                `times out). Query a narrower listing for full counts.`,
+            );
+          }
         }
 
         lines.push('', `🔗 ${BASE_URL}/product/${item.shop_id}/${item.item_id}`);
