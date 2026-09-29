@@ -37,6 +37,7 @@ function fromCard(it: SearchItem): SearchResult | null {
 
   const soldCount = d?.item_card_display_sold_count ?? undefined;
   const before = p.original_price ?? p.strikethrough_price ?? undefined;
+  const v = p.recommended_shop_voucher_info ?? undefined;
 
   // On a "virtual item" card the top-level ids are a synthetic selection-model
   // placeholder that pdp/get_pc rejects (266900504); real_items holds the actual
@@ -47,7 +48,9 @@ function fromCard(it: SearchItem): SearchResult | null {
     itemid: real?.item_id ?? it.itemid ?? d?.itemid ?? 0,
     shopid: real?.shop_id ?? it.shopid ?? d?.shopid ?? 0,
     name,
-    price: p.price,
+    // `price` has the recommended voucher deducted a second time; the promo
+    // price is what Shopee actually shows. See CardDisplayPrice.
+    price: p.applied_product_promo_price ?? p.price,
     priceBeforeDiscount: before ?? undefined,
     // Newer cards carry no currency field at all — left undefined so the caller
     // falls back to the region's currency.
@@ -60,6 +63,15 @@ function fromCard(it: SearchItem): SearchResult | null {
     // No Shopee Mall equivalent is exposed on these cards (`shopee_verified` is a
     // different, seller-level flag), so the badge is simply omitted.
     isOfficialShop: undefined,
+    voucher: v
+      ? {
+          discount: v.voucher_discount ?? undefined,
+          minSpend: v.min_spend ?? undefined,
+          code: v.voucher_code ?? undefined,
+          // Only the first tier matters for the caveat we show.
+          membership: v.groups?.[0] ?? undefined,
+        }
+      : undefined,
   };
 }
 
@@ -185,6 +197,17 @@ export function registerSearchTools(server: McpServer): void {
 
           lines.push(`${rank}. **${r.name}**`);
           lines.push(`   💰 ${priceText(r, CURRENCY)}`);
+          // The price already includes this voucher, but it has to be claimed and
+          // may be gated — so state the terms rather than let it read as the
+          // unconditional price.
+          const vc = r.voucher;
+          if (vc?.discount) {
+            const currency = r.currency || CURRENCY;
+            const parts = [`Incl. −${formatPrice(vc.discount, currency)} voucher`];
+            if (vc.minSpend) parts.push(`min spend ${formatPrice(vc.minSpend, currency)}`);
+            if (vc.membership) parts.push(`⚠️ ${vc.membership} only`);
+            lines.push(`   🎟 ${parts.join(' · ')}`);
+          }
           lines.push(
             `   ${rating}${soldText} | 🏪 ${r.shopLocation || 'N/A'}${official} | 🆔 ${r.itemid}`,
           );

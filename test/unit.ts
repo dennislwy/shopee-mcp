@@ -185,6 +185,77 @@ test('flattenSearchItems: leaves currency undefined on newer cards', () => {
   assert.equal(r.currency, undefined);
 });
 
+/**
+ * A voucher-bearing card, with the real figures from the UGREEN 130W listing:
+ * original 478.06 − product discount 249.06 − voucher 30.00 = 199.00, which is
+ * what shopee.com.my shows as "After Voucher".
+ */
+function fakeVoucherCard(): SearchItem {
+  return fakeCard({
+    item_data: {
+      item_card_display_price: {
+        price: 16900000, // RM169.00 — voucher subtracted twice; must NOT be shown
+        applied_product_promo_price: 19900000, // RM199.00 — the real price
+        strikethrough_price: 47806000,
+        original_price: 47806000,
+        recommended_shop_voucher_info: {
+          voucher_code: '9GCZ0064',
+          voucher_discount: 3000000, // RM30.00
+          min_spend: 4900000, // RM49.00
+          groups: ['Shopee Plus'],
+        },
+      },
+    },
+  });
+}
+
+test('flattenSearchItems: uses applied_product_promo_price, not the double-discounted price', () => {
+  // Regression: `price` has the recommended voucher taken off a second time, so
+  // showing it under-reports every voucher-bearing card by the voucher amount.
+  const [r] = flattenSearchItems([fakeVoucherCard()]);
+  assert.equal(r.price, 19900000, 'should be RM199.00, the post-voucher price');
+  assert.notEqual(r.price, 16900000, 'RM169.00 double-counts the voucher');
+});
+
+test('flattenSearchItems: falls back to price when there is no promo price', () => {
+  const [r] = flattenSearchItems([fakeCard()]);
+  assert.equal(r.price, 22555000);
+});
+
+test('flattenSearchItems: captures the voucher terms behind the price', () => {
+  const [r] = flattenSearchItems([fakeVoucherCard()]);
+  assert.equal(r.voucher?.discount, 3000000);
+  assert.equal(r.voucher?.minSpend, 4900000);
+  assert.equal(r.voucher?.code, '9GCZ0064');
+  assert.equal(r.voucher?.membership, 'Shopee Plus', 'membership gating must survive');
+});
+
+test('flattenSearchItems: no voucher block when the card has none', () => {
+  const [r] = flattenSearchItems([fakeCard()]);
+  assert.equal(r.voucher, undefined);
+});
+
+test('flattenSearchItems: an unrestricted voucher reports no membership', () => {
+  const card = fakeCard({
+    item_data: {
+      item_card_display_price: {
+        price: 2300000,
+        applied_product_promo_price: 2500000,
+        recommended_shop_voucher_info: {
+          voucher_code: 'OTQ5COFT',
+          voucher_discount: 200000,
+          min_spend: 2000000,
+          groups: [],
+        },
+      },
+    },
+  });
+  const [r] = flattenSearchItems([card]);
+  assert.equal(r.price, 2500000);
+  assert.equal(r.voucher?.membership, undefined);
+  assert.equal(r.voucher?.code, 'OTQ5COFT');
+});
+
 test('flattenSearchItems: a newer card with real_items stays one product', () => {
   // real_items on a newer card describes the SAME product, not extra ones —
   // fanning it out would emit a duplicate per entry.

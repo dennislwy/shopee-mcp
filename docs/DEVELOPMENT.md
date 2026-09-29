@@ -58,6 +58,18 @@ price                   RM296.99
 
 `299.99 − 3.00 = 296.99` exactly. Subtracting `discount_amount` from `price` would double-count the voucher and under-report every discounted listing. Report `price` as-is; read `discount_breakdown` only for attribution (which voucher produced the reduction).
 
+**On search cards, use `applied_product_promo_price`, not `price`.** Search results carry a recommended shop voucher, and `price` has that voucher deducted a **second** time. `applied_product_promo_price` is the post-voucher price Shopee actually shows. Verified against a live listing:
+
+```
+original_price                478.06     (= the page's "Original Price")
+  product discount           −249.06
+  shop voucher               − 30.00
+applied_product_promo_price   199.00     (= the page's "After Voucher")
+price                         169.00     (= 199.00 − 30.00 again)
+```
+
+Displaying `price` under-reports every voucher-bearing card by the voucher amount. The relationship `price = applied_product_promo_price − voucher_discount` holds consistently, which makes it tempting to read `price` as the final figure — it is not. The voucher itself is in `recommended_shop_voucher_info`, and is often restricted to a membership tier (`groups: ["Shopee Plus"]`) and a `min_spend`, so the price is not unconditional.
+
 **App-exclusive pricing is not visible.** This server reads Shopee's **PC web** app, and the mobile app can show a lower price for the same item — one listing showed RM296.99 on web against RM288.08 in the app. That figure appears nowhere in the PC payload: not in `get_pc`, not in any of the ~20 other endpoints the product page calls, and not in the rendered page. It is structurally out of reach here, not a parsing gap. Closing it would mean targeting the mobile API, a different anti-bot surface.
 
 **Exact per-variant stock is also absent** from `get_pc` (`stock` and `normal_stock` are null at `detail_level: 0`, which the page controls). It comes only from `cart_panel/select_variation_pc`, fired when a variant is selected — one round trip per variant, which is why `get_product_variants` makes `includeStock` opt-in.

@@ -36,12 +36,31 @@ export interface ItemBasic {
 // Observed live on shopee.com.my; both shapes are handled (see
 // flattenSearchItems), since which one a domain serves can change at any time.
 
+/** The shop voucher Shopee pre-applies to a search card's price. */
+export interface CardRecommendedVoucher {
+  voucher_code?: string | null;
+  /** Real amount × 100000. */
+  voucher_discount?: number | null;
+  min_spend?: number | null;
+  /** Membership tiers the voucher is restricted to, e.g. ["Shopee Plus"]. */
+  groups?: string[] | null;
+}
+
 export interface CardDisplayPrice {
-  /** Real amount × 100000, same scale as the legacy fields. */
+  /**
+   * NOT the price to display: this has the recommended voucher subtracted a
+   * second time. Use `applied_product_promo_price` when it is present — that is
+   * the post-voucher price Shopee actually shows. Verified against a live
+   * listing: original 478.06 − product discount 249.06 − voucher 30.00 = 199.00
+   * = `applied_product_promo_price`, while `price` read 169.00.
+   */
   price: number;
+  /** The real post-voucher price. Real amount × 100000. */
+  applied_product_promo_price?: number | null;
   strikethrough_price?: number | null;
   original_price?: number | null;
   discount?: number | null;
+  recommended_shop_voucher_info?: CardRecommendedVoucher | null;
 }
 
 export interface CardSoldCount {
@@ -122,6 +141,15 @@ export interface SearchResult {
   shopLocation?: string;
   /** Only the legacy shape reports Shopee Mall membership. */
   isOfficialShop?: boolean;
+  /** Terms of the voucher already reflected in `price`, when there is one. */
+  voucher?: {
+    /** Real amount × 100000. */
+    discount?: number;
+    minSpend?: number;
+    code?: string;
+    /** Membership tier required to use it, e.g. "Shopee Plus". */
+    membership?: string;
+  };
 }
 
 // ─── Product Detail Types ───────────────────────────────────────────────────
