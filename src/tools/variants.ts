@@ -1,15 +1,23 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { shopeeCapture, shopeeUrl } from '../api/client.js';
-import { BASE_URL, CURRENCY, captureWithSelections } from '../browser/session.js';
+import {
+  BASE_URL,
+  CURRENCY,
+  SELECTION_BUDGET_MS,
+  captureWithSelections,
+} from '../browser/session.js';
 import { cache } from '../utils/cache.js';
 import { withErrorHandling } from '../utils/errors.js';
 import { formatPrice } from '../utils/price.js';
 import { parseProductUrl } from './product.js';
 import type { PdpModel, PdpResponse, SelectVariationResponse } from '../api/types.js';
 
-/** Clicking every option on a long list costs a round trip each; keep it sane. */
-const MAX_STOCK_LOOKUPS = 12;
+/**
+ * Hard ceiling on variant lookups. The wall-clock budget (SELECTION_BUDGET_MS)
+ * is normally what stops the loop first; this only guards pathological listings.
+ */
+const MAX_STOCK_LOOKUPS = 30;
 
 /** One variant, normalised for display. */
 export interface VariantRow {
@@ -124,6 +132,7 @@ export function registerVariantTools(server: McpServer): void {
             apiMatch: 'pdp/get_pc',
             selectionApiMatch: 'cart_panel/select_variation_pc',
             maxSelections: MAX_STOCK_LOOKUPS,
+            deadlineMs: SELECTION_BUDGET_MS,
             labelsFrom: (p) => (p.data?.item?.models ?? []).map((m) => m.name),
           });
           data = primary;
@@ -187,6 +196,10 @@ export function registerVariantTools(server: McpServer): void {
               `   💰 ${formatPrice(r.postVoucherPrice, currency)} after voucher` +
                 ` · ${formatPrice(r.price, currency)} list${before}`,
             );
+          } else if (includeStock) {
+            // A row the budget never reached. Without saying so it reads as
+            // comparable to the "after voucher" rows above it, which it is not.
+            lines.push(`   💰 ${formatPrice(r.price, currency)} list (before voucher)${before}`);
           } else {
             lines.push(`   💰 ${formatPrice(r.price, currency)}${before}`);
           }
@@ -220,9 +233,10 @@ export function registerVariantTools(server: McpServer): void {
             // the ~60s most MCP clients allow; say so rather than look inconsistent.
             lines.push(
               '',
-              `⚠️ Exact counts for ${got} of ${rows.length} variants — the rest show availability ` +
-                `only (each count costs a round trip, and the lookup stops before the request ` +
-                `times out). Query a narrower listing for full counts.`,
+              `⚠️ Live data for ${got} of ${rows.length} variants. The rest show **list** prices ` +
+                `(before voucher) and availability only — each lookup costs a round trip, and the ` +
+                `run stopped after ${Math.round(SELECTION_BUDGET_MS / 1000)}s. Raise ` +
+                `\`SHOPEE_VARIANT_BUDGET_MS\` (and your client's request timeout) for fuller coverage.`,
             );
           }
         }

@@ -11,7 +11,7 @@ import { parseProductUrl, priceText } from '../src/tools/product.js';
 import { buildVariantRows } from '../src/tools/variants.js';
 import { shopeeCapture, ShopeeAuthRequiredError } from '../src/api/client.js';
 import { cache } from '../src/utils/cache.js';
-import { regionFor } from '../src/browser/session.js';
+import { regionFor, parseBudgetMs } from '../src/browser/session.js';
 import type { SearchItem, ItemBasic, PdpModel } from '../src/api/types.js';
 
 let failures = 0;
@@ -414,6 +414,22 @@ test('buildVariantRows: folds in per-variant post-voucher prices', () => {
 test('buildVariantRows: no post-voucher prices when none were gathered', () => {
   const [a] = buildVariantRows(fakeModels());
   assert.equal(a.postVoucherPrice, undefined);
+});
+
+test('parseBudgetMs: uses the fallback when unset or unparseable', () => {
+  assert.equal(parseBudgetMs(undefined), 50000);
+  assert.equal(parseBudgetMs(''), 50000);
+  assert.equal(parseBudgetMs('abc'), 50000);
+});
+
+test('parseBudgetMs: accepts a raised budget', () => {
+  assert.equal(parseBudgetMs('240000'), 240000);
+});
+
+test('parseBudgetMs: rejects a budget too small to complete any lookup', () => {
+  // Under ~10s not even the page load finishes, so honouring it would just
+  // return zero live data while looking configured.
+  assert.equal(parseBudgetMs('500'), 50000);
 });
 
 test('buildVariantRows: carries the pre-order flag', () => {

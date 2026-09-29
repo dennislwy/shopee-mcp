@@ -45,6 +45,24 @@ export const LOCALE = process.env.SHOPEE_LOCALE || region.locale;
 export const TIMEZONE = process.env.SHOPEE_TIMEZONE || region.timezone;
 export const CURRENCY = region.currency;
 
+/**
+ * Wall-clock budget for per-variant lookups (`get_product_variants` with
+ * `includeStock`). Each variant costs a round trip, so this decides how many
+ * get real prices before the tool returns what it has.
+ *
+ * The default keeps a call inside the ~60s most MCP clients allow, which on a
+ * typical listing covers only the first few variants. Raise it if your client's
+ * timeout is higher — Hermes Agent allows 300s, for instance.
+ */
+export function parseBudgetMs(raw: string | undefined, fallback = 50000): number {
+  const n = Number(raw);
+  // Reject blank, non-numeric and implausibly small values rather than
+  // half-applying them; under ~10s no variant lookup can complete anyway.
+  return Number.isFinite(n) && n >= 10000 ? n : fallback;
+}
+
+export const SELECTION_BUDGET_MS = parseBudgetMs(process.env.SHOPEE_VARIANT_BUDGET_MS);
+
 export const PROFILE_DIR =
   process.env.SHOPEE_PROFILE_DIR || path.join(os.homedir(), '.shopee-mcp', 'chrome-profile');
 

@@ -10,15 +10,16 @@ For installing the package or cloning the repo, see **[Installation](../README.m
 
 All optional. Set them in your MCP client's **`env`** block, or copy `.env.example` to `.env` when developing from a checkout.
 
-| Variable             | Default                        | Description                          |
-| -------------------- | ------------------------------ | ------------------------------------ |
-| `SHOPEE_DOMAIN`      | `shopee.com.my`                | Regional Shopee domain.              |
-| `SHOPEE_LOCALE`      | _derived from domain_          | Browser locale override.             |
-| `SHOPEE_TIMEZONE`    | _derived from domain_          | Browser timezone override.           |
-| `SHOPEE_PROFILE_DIR` | `~/.shopee-mcp/chrome-profile` | Where the saved login lives.         |
-| `SHOPEE_HEADLESS`    | `false`                        | Keep `false` — headless is detected. |
-| `CACHE_TTL_MS`       | `30000`                        | In-memory cache lifetime.            |
-| `DEBUG`              | `false`                        | Log startup/debug info to stderr.    |
+| Variable                   | Default                        | Description                               |
+| -------------------------- | ------------------------------ | ----------------------------------------- |
+| `SHOPEE_DOMAIN`            | `shopee.com.my`                | Regional Shopee domain.                   |
+| `SHOPEE_LOCALE`            | _derived from domain_          | Browser locale override.                  |
+| `SHOPEE_TIMEZONE`          | _derived from domain_          | Browser timezone override.                |
+| `SHOPEE_PROFILE_DIR`       | `~/.shopee-mcp/chrome-profile` | Where the saved login lives.              |
+| `SHOPEE_HEADLESS`          | `false`                        | Keep `false` — headless is detected.      |
+| `SHOPEE_VARIANT_BUDGET_MS` | `50000`                        | Time budget (ms) for per-variant lookups. |
+| `CACHE_TTL_MS`             | `30000`                        | In-memory cache lifetime.                 |
+| `DEBUG`                    | `false`                        | Log startup/debug info to stderr.         |
 
 ### Locale and timezone
 
@@ -50,7 +51,9 @@ The tool reference lives in the [root README](../README.md#tools). What matters 
 | `get_product_variants`                  | ~30s    | One page load.                                             |
 | `get_product_variants` + `includeStock` | ~50s    | Adds a round trip per variant (see below).                 |
 
-`get_product_variants` reports exact per-variant stock only when `includeStock` is set, because Shopee reveals those counts one variant at a time — each costs a separate round trip. The lookup stops on a time budget so it stays inside a 60-second timeout, reporting availability for any variants it did not reach and stating the coverage in its output. Raising your client's timeout above ~70s lets it cover more variants per call; it is off by default so the common path stays fast.
+`get_product_variants` reports exact per-variant stock only when `includeStock` is set, because Shopee reveals those counts one variant at a time — each costs a separate round trip. The lookup stops on a time budget so it stays inside a 60-second timeout, reporting availability for any variants it did not reach and stating the coverage in its output. Coverage is bounded by `SHOPEE_VARIANT_BUDGET_MS` (default `50000`). Roughly 25s goes to the page load before the first lookup, then ~6s per variant — so the default covers only the first few variants of a long listing, and the rest fall back to **list** prices, labelled as such.
+
+To cover more, raise both the budget and your client's request timeout together; raising one without the other just moves where the call dies. For a listing with 8 variants, `SHOPEE_VARIANT_BUDGET_MS=90000` with a timeout above ~2 minutes is a reasonable pairing. Hermes Agent allows 300s per call by default, so only the budget needs raising there.
 
 A signed-out session returns the "run `npm run login`" prompt in about a second, so a slow call means work is happening, not that authentication is being retried.
 

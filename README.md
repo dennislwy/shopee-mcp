@@ -91,15 +91,16 @@ On macOS/Linux desktop, use the appropriate absolute path. On a Linux server wit
 
 All optional — see `.env.example`. Copy to `.env` to override.
 
-| Variable             | Default                        | Purpose                              |
-| -------------------- | ------------------------------ | ------------------------------------ |
-| `SHOPEE_DOMAIN`      | `shopee.com.my`                | Regional Shopee domain.              |
-| `SHOPEE_LOCALE`      | _derived from domain_          | Browser locale (e.g. `en-MY`).       |
-| `SHOPEE_TIMEZONE`    | _derived from domain_          | Browser timezone.                    |
-| `SHOPEE_PROFILE_DIR` | `~/.shopee-mcp/chrome-profile` | Where the saved login lives.         |
-| `SHOPEE_HEADLESS`    | `false`                        | Keep `false` — headless is detected. |
-| `CACHE_TTL_MS`       | `30000`                        | In-memory cache lifetime.            |
-| `DEBUG`              | `false`                        | Log startup/debug info to stderr.    |
+| Variable                   | Default                        | Purpose                              |
+| -------------------------- | ------------------------------ | ------------------------------------ |
+| `SHOPEE_DOMAIN`            | `shopee.com.my`                | Regional Shopee domain.              |
+| `SHOPEE_LOCALE`            | _derived from domain_          | Browser locale (e.g. `en-MY`).       |
+| `SHOPEE_TIMEZONE`          | _derived from domain_          | Browser timezone.                    |
+| `SHOPEE_PROFILE_DIR`       | `~/.shopee-mcp/chrome-profile` | Where the saved login lives.         |
+| `SHOPEE_HEADLESS`          | `false`                        | Keep `false` — headless is detected. |
+| `SHOPEE_VARIANT_BUDGET_MS` | `50000`                        | Time budget for per-variant lookups. |
+| `CACHE_TTL_MS`             | `30000`                        | In-memory cache lifetime.            |
+| `DEBUG`                    | `false`                        | Log startup/debug info to stderr.    |
 
 ## Development
 
