@@ -6,7 +6,7 @@ import type { BrowserContext, Page, Response } from 'playwright';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-export const DOMAIN = process.env.SHOPEE_DOMAIN || 'shopee.co.id';
+export const DOMAIN = process.env.SHOPEE_DOMAIN || 'shopee.com.my';
 export const BASE_URL = `https://${DOMAIN}`;
 
 // Shopee tailors its web app to the visitor's region, so the browser's locale and
@@ -29,7 +29,9 @@ const REGION_DEFAULTS: Record<string, Region> = {
   '.tw': { locale: 'zh-TW', timezone: 'Asia/Taipei', currency: 'TWD' },
 };
 
-// Falls back to the Indonesian defaults, matching the default SHOPEE_DOMAIN.
+// Used only for domains with no entry above (.co.th, .vn, .ph, …). The default
+// SHOPEE_DOMAIN is mapped, so this never applies to it; Indonesian values are
+// kept purely as a neutral fallback rather than because they suit those markets.
 const FALLBACK_REGION = REGION_DEFAULTS['.id'];
 
 /** Region defaults for a Shopee domain, chosen by its TLD suffix. */

@@ -40,7 +40,7 @@ export function registerProductTools(server: McpServer): void {
         .string()
         .url()
         .optional()
-        .describe('Full product URL, e.g. https://shopee.co.id/product/78730497/47060432055'),
+        .describe('Full product URL, e.g. https://shopee.com.my/product/20108462/48013896180'),
     },
     async ({ shopId, itemId, url }) => {
       return withErrorHandling(async () => {

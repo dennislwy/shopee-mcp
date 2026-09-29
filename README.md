@@ -93,7 +93,7 @@ All optional — see `.env.example`. Copy to `.env` to override.
 
 | Variable             | Default                        | Purpose                              |
 | -------------------- | ------------------------------ | ------------------------------------ |
-| `SHOPEE_DOMAIN`      | `shopee.co.id`                 | Regional Shopee domain.              |
+| `SHOPEE_DOMAIN`      | `shopee.com.my`                | Regional Shopee domain.              |
 | `SHOPEE_LOCALE`      | _derived from domain_          | Browser locale (e.g. `en-MY`).       |
 | `SHOPEE_TIMEZONE`    | _derived from domain_          | Browser timezone.                    |
 | `SHOPEE_PROFILE_DIR` | `~/.shopee-mcp/chrome-profile` | Where the saved login lives.         |
