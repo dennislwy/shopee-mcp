@@ -125,10 +125,9 @@ mcp_servers:
     env:
       SHOPEE_DOMAIN: shopee.com.my
     enabled: true
-    timeout: 180000
 ```
 
-**Set `timeout`.** Hermes takes a per-server timeout in **milliseconds**, and the default is well under what this server needs — every call drives a real browser (see [Tools and request timeouts](#tools-and-request-timeouts)). `180000` (3 minutes) leaves room for a cold browser launch and for `get_product_variants` with `includeStock`. Without it, calls that are working normally will be cut off.
+**No timeout setting needed.** Hermes allows 300 seconds per tool call by default — comfortably above what this server needs (see [Tools and request timeouts](#tools-and-request-timeouts)). If you do want to pin it, the optional per-server `timeout` key is in **seconds**, not milliseconds: `timeout: 180` is three minutes.
 
 Useful checks: `hermes mcp list` shows configured servers, and `hermes mcp test shopee` verifies the connection and tool discovery without starting a chat.
 
