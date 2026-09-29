@@ -54,8 +54,13 @@ const HEADLESS = process.env.SHOPEE_HEADLESS === 'true';
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36';
 
+// Verbose logging is opt-in: only an explicit "true" enables it, so an unset,
+// empty or malformed DEBUG leaves it off. Resolved once, and exported so every
+// caller shares one definition of "is debugging on" rather than re-reading env.
+export const DEBUG = process.env.DEBUG === 'true';
+
 function debug(msg: string): void {
-  if (process.env.DEBUG === 'true') process.stderr.write(`[shopee-mcp] ${msg}\n`);
+  if (DEBUG) process.stderr.write(`[shopee-mcp] ${msg}\n`);
 }
 
 // ─── Context singleton ────────────────────────────────────────────────────────

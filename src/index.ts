@@ -9,7 +9,7 @@ import { registerSearchTools } from './tools/search.js';
 import { registerProductTools } from './tools/product.js';
 import { registerVariantTools } from './tools/variants.js';
 import { registerStatusTools } from './tools/status.js';
-import { closeContext } from './browser/session.js';
+import { closeContext, DEBUG } from './browser/session.js';
 
 // Read the version from package.json at runtime so it can't drift from the
 // published package version (this file previously hardcoded a stale string).
@@ -34,7 +34,7 @@ async function main() {
   const transport = new StdioServerTransport();
   await server.connect(transport);
 
-  if (process.env.DEBUG === 'true') {
+  if (DEBUG) {
     process.stderr.write('[shopee-mcp] Server started via stdio (browser-backed discovery)\n');
   }
 }
