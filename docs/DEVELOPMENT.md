@@ -44,6 +44,24 @@ Shopee does **not** expose an open API or server-rendered product HTML. Its `/ap
 
 So this server drives **[CloakBrowser](https://github.com/CloakHQ/cloakbrowser)** (a fingerprint-patched Chromium) against a persistent profile you log into once, **navigates to the real Shopee page, and intercepts the response** its own app fetches — so the request carries valid signatures. The browser runs **headed** (Shopee detects headless); on a server use `xvfb`.
 
+## How Shopee reports prices
+
+Prices are the real amount **× 100000** (`29699000` is RM296.99). Beyond that, two things about the payload are easy to get wrong.
+
+**`product_price.price` is already the final, post-voucher price.** `price_before_discount` is the original. `price_breakdown.discount_breakdown[]` **explains the gap between them** — it is not a list of further deductions to apply on top of `price`. For one observed listing:
+
+```
+price_before_discount   RM299.99
+discount_breakdown      Shop Voucher Discount  −RM3.00
+price                   RM296.99
+```
+
+`299.99 − 3.00 = 296.99` exactly. Subtracting `discount_amount` from `price` would double-count the voucher and under-report every discounted listing. Report `price` as-is; read `discount_breakdown` only for attribution (which voucher produced the reduction).
+
+**App-exclusive pricing is not visible.** This server reads Shopee's **PC web** app, and the mobile app can show a lower price for the same item — one listing showed RM296.99 on web against RM288.08 in the app. That figure appears nowhere in the PC payload: not in `get_pc`, not in any of the ~20 other endpoints the product page calls, and not in the rendered page. It is structurally out of reach here, not a parsing gap. Closing it would mean targeting the mobile API, a different anti-bot surface.
+
+**Exact per-variant stock is also absent** from `get_pc` (`stock` and `normal_stock` are null at `detail_level: 0`, which the page controls). It comes only from `cart_panel/select_variation_pc`, fired when a variant is selected — one round trip per variant, which is why `get_product_variants` makes `includeStock` opt-in.
+
 ## Build output
 
 `npm run build` emits JavaScript under **`build/`**. The repo **gitignores** `build/`; CI and `prepublishOnly` run `npm run build`.

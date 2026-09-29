@@ -128,6 +128,7 @@ More detail: **[docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)**.
 
 - **Login required.** No session → tools return a friendly "run `npm run login`" prompt.
 - **Anti-bot is a moving target.** The free CloakBrowser binary can go stale as Shopee updates detection; CloakBrowser Pro ships newer patches.
+- **Prices are the PC web prices.** Reported prices are already post-voucher, matching what shopee.com shows in a browser. Shopee's **mobile app** can show a lower, app-exclusive price for the same item — that discount is not present anywhere in the web data, so it cannot be reported here. See [how Shopee reports prices](./docs/DEVELOPMENT.md#how-shopee-reports-prices).
 - Respect Shopee's Terms of Service. This is for personal market exploration, not scraping at scale.
 
 ## Contributing & security
