@@ -49,7 +49,8 @@ The tool reference lives in the [root README](../README.md#tools). What matters 
 | `search_products`                       | ~30s    | Shopee fires its search request ~28s into the page load.   |
 | `get_product_detail`                    | ~30s    | One page load.                                             |
 | `get_product_variants`                  | ~30s    | One page load.                                             |
-| `get_product_variants` + `includeStock` | ~50s    | Adds a round trip per variant (see below).                 |
+| `get_product_variants` + `includeStock` | 30-60s+ | One round trip per variant; bounded by the budget below.   |
+| … + `match` (one variant)               | ~35s    | Looks up only the matching variants. Much the faster path. |
 
 `get_product_variants` reports exact per-variant stock only when `includeStock` is set, because Shopee reveals those counts one variant at a time — each costs a separate round trip. The lookup stops on a time budget so it stays inside a 60-second timeout, reporting availability for any variants it did not reach and stating the coverage in its output. Coverage is bounded by `SHOPEE_VARIANT_BUDGET_MS` (default `50000`). Roughly 25s goes to the page load before the first lookup, then ~6s per variant — so the default covers only the first few variants of a long listing, and the rest fall back to **list** prices, labelled as such.
 

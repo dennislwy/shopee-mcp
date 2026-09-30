@@ -29,10 +29,12 @@ src/
   tools/
     search.ts       # search_products
     product.ts      # get_product_detail
+    variants.ts     # get_product_variants
     status.ts       # check_login_status
   utils/
     cache.ts        # in-memory TTL cache
     errors.ts       # error wrapper / friendly messages
+    price.ts        # currency table; shared by search and product
 test/
   unit.ts           # offline unit tests (npm run test:unit)
   smoke.ts          # the npm test health check (live)
@@ -79,6 +81,8 @@ The voucher is in `recommended_shop_voucher_info`. It must be claimed, usually c
 | 200w 25 000mAh | 279.00           | **249.00**            |
 | 130w 20 000mAh | 239.00           | **209.00**            |
 | 100w 12 000mAh | 182.09           | **152.09**            |
+
+**Clicking a variant has to wait for hydration.** The option button exists in the DOM before React attaches its handler, so a click fired the moment it appears is a silent no-op — no error, no request, just nothing. `captureWithSelections` settles for 3s after the options render and retries a click once if no response arrives. Without that, a filtered lookup (one click, no second chance) returns zero live data on some listings while looking like it simply found nothing. It is a timing race, not a deterministic fix: a lookup that reports `0 variants matching` is worth re-running before believing it.
 
 That is one round trip per variant, which is why `get_product_variants` keeps `includeStock` opt-in — it gathers both from the same response. On the default path the tool labels its prices as list prices rather than implying they are what you would pay.
 

@@ -122,6 +122,7 @@ More detail: **[docs/DEVELOPMENT.md](./docs/DEVELOPMENT.md)**.
 | `🔒 Not signed in` / anonymous-request errors | No/expired session → run `npm run login`.                                                                               |
 | `error 90309999` or empty results             | Shopee's anti-bot gate rejected the request. Ensure you're logged in and running **headed** (or via `xvfb-run`); retry. |
 | A read returns empty for a valid product      | Shopee lazy-loads; retry, and run with `DEBUG=true` to inspect.                                                         |
+| `Live data for the 0 variants matching …`     | A variant click lost the race with page hydration. Re-run; it usually succeeds on the second attempt.                   |
 | Empty or stale results right after a change   | In-memory cache — lower `CACHE_TTL_MS` or wait for the TTL to expire.                                                   |
 | Headless / server has no display              | Wrap the command in `xvfb-run -a …`.                                                                                    |
 
