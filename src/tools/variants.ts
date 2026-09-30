@@ -64,6 +64,25 @@ export function buildVariantRows(
   });
 }
 
+/**
+ * Which variants to spend a lookup on. Each costs a round trip, so when the
+ * caller is asking about one option ("the 65W") there is no reason to cycle the
+ * whole listing — and cycling it risks the budget running out before reaching
+ * the one that was actually wanted.
+ *
+ * An unmatched filter deliberately yields nothing rather than falling back to
+ * every variant: silently doing the slow thing is worse than reporting no match.
+ */
+export function selectLookupLabels(
+  models: PdpModel[] | null | undefined,
+  match?: string,
+): string[] {
+  const names = (models ?? []).map((m) => m.name);
+  const needle = match?.trim().toLowerCase();
+  if (!needle) return names;
+  return names.filter((n) => n.toLowerCase().includes(needle));
+}
+
 function stockLabel(r: VariantRow): string {
   if (r.stock !== undefined) return `📦 ${r.stock.toLocaleString('en-US')} in stock`;
   if (r.inStock === true) return '✅ In stock';
@@ -82,6 +101,15 @@ export function registerVariantTools(server: McpServer): void {
       shopId: z.string().optional().describe('Numeric shop ID (from search_products)'),
       itemId: z.string().optional().describe('Numeric item/product ID (from search_products)'),
       url: z.string().url().optional().describe('Full product URL, as an alternative to the IDs'),
+      match: z
+        .string()
+        .optional()
+        .describe(
+          'Only look up variants whose name contains this text, e.g. "65W". Use it with ' +
+            'includeStock when the question is about one option — each variant costs a round ' +
+            'trip, so filtering is much faster than covering the whole listing. All variants ' +
+            'are still listed either way.',
+        ),
       includeStock: z
         .boolean()
         .default(false)
@@ -91,7 +119,7 @@ export function registerVariantTools(server: McpServer): void {
             'list prices and stock is reported as in/out of stock.',
         ),
     },
-    async ({ shopId, itemId, url, includeStock }) => {
+    async ({ shopId, itemId, url, includeStock, match }) => {
       return withErrorHandling(async () => {
         let sid = shopId;
         let iid = itemId;
@@ -113,7 +141,7 @@ export function registerVariantTools(server: McpServer): void {
           };
         }
 
-        const cacheKey = cache.key('variants', sid, iid, includeStock);
+        const cacheKey = cache.key('variants', sid, iid, includeStock, match ?? '');
         const cached = cache.get<string>(cacheKey);
         if (cached) return { content: [{ type: 'text' as const, text: cached }] };
 
@@ -133,7 +161,7 @@ export function registerVariantTools(server: McpServer): void {
             selectionApiMatch: 'cart_panel/select_variation_pc',
             maxSelections: MAX_STOCK_LOOKUPS,
             deadlineMs: SELECTION_BUDGET_MS,
-            labelsFrom: (p) => (p.data?.item?.models ?? []).map((m) => m.name),
+            labelsFrom: (p) => selectLookupLabels(p.data?.item?.models, match),
           });
           data = primary;
           stockByName = new Map();
@@ -226,6 +254,12 @@ export function registerVariantTools(server: McpServer): void {
             `⚠️ This listing varies across ${tiers.length} options (${tiers.map((t) => t.name).join(' × ')}), ` +
               'so exact counts are unavailable — showing availability instead.',
           );
+        } else if (match && !rows.some((r) => r.name.toLowerCase().includes(match.toLowerCase()))) {
+          lines.push(
+            '',
+            `⚠️ No variant name contains "${match}", so nothing was looked up — the prices above ` +
+              `are **list** prices. Check the variant names and retry, or drop \`match\`.`,
+          );
         } else {
           const got = rows.filter((r) => r.stock !== undefined).length;
           if (got < rows.length) {
@@ -233,10 +267,13 @@ export function registerVariantTools(server: McpServer): void {
             // the ~60s most MCP clients allow; say so rather than look inconsistent.
             lines.push(
               '',
-              `⚠️ Live data for ${got} of ${rows.length} variants. The rest show **list** prices ` +
-                `(before voucher) and availability only — each lookup costs a round trip, and the ` +
-                `run stopped after ${Math.round(SELECTION_BUDGET_MS / 1000)}s. Raise ` +
-                `\`SHOPEE_VARIANT_BUDGET_MS\` (and your client's request timeout) for fuller coverage.`,
+              match
+                ? `ℹ️ Live data for the ${got} variant${got === 1 ? '' : 's'} matching "${match}". ` +
+                    `The rest show **list** prices (before voucher) — drop \`match\` to cover them all.`
+                : `⚠️ Live data for ${got} of ${rows.length} variants. The rest show **list** prices ` +
+                    `(before voucher) and availability only — each lookup costs a round trip, and the ` +
+                    `run stopped after ${Math.round(SELECTION_BUDGET_MS / 1000)}s. Raise ` +
+                    `\`SHOPEE_VARIANT_BUDGET_MS\` (and your client's request timeout) for fuller coverage.`,
             );
           }
         }

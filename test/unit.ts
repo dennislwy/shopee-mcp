@@ -8,7 +8,7 @@ import assert from 'node:assert/strict';
 import { flattenSearchItems } from '../src/tools/search.js';
 import { formatPrice } from '../src/utils/price.js';
 import { parseProductUrl, priceText } from '../src/tools/product.js';
-import { buildVariantRows } from '../src/tools/variants.js';
+import { buildVariantRows, selectLookupLabels } from '../src/tools/variants.js';
 import { shopeeCapture, ShopeeAuthRequiredError } from '../src/api/client.js';
 import { cache } from '../src/utils/cache.js';
 import { regionFor, parseBudgetMs } from '../src/browser/session.js';
@@ -414,6 +414,42 @@ test('buildVariantRows: folds in per-variant post-voucher prices', () => {
 test('buildVariantRows: no post-voucher prices when none were gathered', () => {
   const [a] = buildVariantRows(fakeModels());
   assert.equal(a.postVoucherPrice, undefined);
+});
+
+const lookupModels = [
+  { model_id: 1, name: '【45W】 - 3 Ports', price: 1 },
+  { model_id: 2, name: '【65W】 - 3 Ports', price: 1 },
+  { model_id: 3, name: '【100W】 - 4 Ports', price: 1 },
+  { model_id: 4, name: '【100W】+ 1M USB-C', price: 1 },
+] as PdpModel[];
+
+test('selectLookupLabels: no filter means every variant', () => {
+  assert.equal(selectLookupLabels(lookupModels).length, 4);
+});
+
+test('selectLookupLabels: narrows to the variants the query is about', () => {
+  // The point of the filter: one 6s round trip instead of four.
+  assert.deepEqual(selectLookupLabels(lookupModels, '65W'), ['【65W】 - 3 Ports']);
+});
+
+test('selectLookupLabels: matching ignores case and surrounding decoration', () => {
+  assert.deepEqual(selectLookupLabels(lookupModels, '65w'), ['【65W】 - 3 Ports']);
+  assert.equal(selectLookupLabels(lookupModels, '100w').length, 2);
+});
+
+test('selectLookupLabels: a blank filter is treated as no filter', () => {
+  assert.equal(selectLookupLabels(lookupModels, '   ').length, 4);
+  assert.equal(selectLookupLabels(lookupModels, '').length, 4);
+});
+
+test('selectLookupLabels: an unmatched filter looks up nothing', () => {
+  // Better to return no live data and say so than to silently click all four.
+  assert.deepEqual(selectLookupLabels(lookupModels, '200W'), []);
+});
+
+test('selectLookupLabels: handles a listing with no models', () => {
+  assert.deepEqual(selectLookupLabels(null, '65W'), []);
+  assert.deepEqual(selectLookupLabels(undefined), []);
 });
 
 test('parseBudgetMs: uses the fallback when unset or unparseable', () => {
