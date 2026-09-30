@@ -235,6 +235,12 @@ export async function captureWithSelections<P, S>(
       )
       .catch(() => debug('Variant options never rendered; skipping selections'));
 
+    // The button exists in the DOM before React attaches its click handler, so
+    // clicking the instant it appears is silently ignored. Unfiltered runs hid
+    // this — a later variant would succeed once the page settled — but when the
+    // caller filters to a single variant there is no second chance.
+    await page.waitForTimeout(3000);
+
     for (const label of labels) {
       // Each selection is a full round trip, so check the budget before starting
       // another rather than discovering mid-flight that we've overrun.
@@ -263,7 +269,26 @@ export async function captureWithSelections<P, S>(
         debug(`No option button for "${label}"`);
         continue;
       }
-      const resp = await fired;
+      let resp = await fired;
+
+      // A click that lands before hydration is a no-op rather than an error, so
+      // retry once when nothing came back and the budget still allows it.
+      if (!resp && deadline - Date.now() > 8000) {
+        debug(`No response for "${label}"; retrying the click once`);
+        const retry = page
+          .waitForResponse((r: Response) => r.url().includes(opts.selectionApiMatch), {
+            timeout: 8000,
+          })
+          .catch(() => null);
+        await page.evaluate((l: string) => {
+          const b = Array.from(document.querySelectorAll('button')).find(
+            (x) => (x.textContent || '').trim() === l,
+          );
+          b?.click();
+        }, label);
+        resp = await retry;
+      }
+
       if (!resp) {
         debug(`No ${opts.selectionApiMatch} response for "${label}"`);
         continue;
